@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kugoo 2.0</title>
+  <title>Kugoo v2.0 | Universal Web Bluetooth</title>
   <style>
     :root {
       --bg-primary: #0a0e17;
@@ -800,16 +800,23 @@
         <span id="diagLastHex" class="diag-val" style="color:var(--accent-cyan); font-size:10px;">--</span>
       </div>
 
+      <div class="diag-row">
+        <span class="diag-label">Декодировано (DP):</span>
+        <span id="diagDps" class="diag-val" style="color:var(--accent-green); font-size:10px;">Ожидание данных...</span>
+      </div>
+
       <div class="diag-controls">
         <select id="protocolSelector" class="protocol-select" onchange="onProtocolChange(this.value)">
           <option value="auto">Режим: АВТО (все протоколы)</option>
-          <option value="tuya">Протокол: Tuya BLE (Kugoo Riding OEM)</option>
+          <option value="tuya_channel">Протокол: Tuya BLE Channel (Kugoo Riding)</option>
+          <option value="tuya">Протокол: Tuya BLE Serial (55 AA)</option>
           <option value="kugoo_lenze">Протокол: Kugoo S1/S2/S3 (Lenze AA 55)</option>
           <option value="minirobot">Протокол: MiniRobot / Clone (55 AA)</option>
           <option value="nus">Протокол: Nordic UART (NUS)</option>
         </select>
         <button class="btn-secondary" onclick="manualPoll()">🔄 Опрос</button>
         <button class="btn-secondary" onclick="sendTestHandshake()">⚡ Рукопожатие</button>
+        <button class="btn-secondary" onclick="manualSendAck()">🛡️ Отправить ACK</button>
       </div>
     </div>
 
@@ -1018,6 +1025,16 @@
       txPacketCount: 0,
       lastRxTime: null,
       heartbeatTimer: null,
+
+      // Tuya BLE Channel framing state
+      tuyaChannel: {
+        rxChunks: new Map(),
+        expectedFrames: 0,
+        ackCount: 0,
+        lastSn: 0,
+        seqOut: 1
+      },
+      dps: {}, // Active decoded DPs
 
       // Metrics
       speed: 0,
@@ -1315,15 +1332,77 @@
     }
 
     /* =========================================================
+       DIAGNOSTICS & PACKET COUNTER UI
+       ========================================================= */
+
+    function updatePacketsCounterUI() {
+      const diagEl = document.getElementById('diagPackets');
+      if (diagEl) {
+        diagEl.textContent = `RX: ${state.rxPacketCount} | TX: ${state.txPacketCount} | ACK: ${state.tuyaChannel.ackCount}`;
+      }
+    }
+
+    function updateDpsDiagnosticUI() {
+      const el = document.getElementById('diagDps');
+      if (!el) return;
+      const parts = [];
+      if (state.dps[3] !== undefined) parts.push(`Скор: ${state.speed} км/ч`);
+      if (state.dps[4] !== undefined) parts.push(`АКБ: ${state.battery}%`);
+      if (state.dps[2] !== undefined) parts.push(`Режим: ${state.currentGear}`);
+      if (state.dps[7] !== undefined) parts.push(`Фара: ${state.isHeadlightOn ? 'ВКЛ' : 'ВЫКЛ'}`);
+      if (state.dps[1] !== undefined) parts.push(`Блок: ${state.isLocked ? 'ДА' : 'НЕТ'}`);
+      if (state.dps[5] !== undefined) parts.push(`ODO: ${state.totalKm} км`);
+      if (state.dps[6] !== undefined) parts.push(`Trip: ${state.tripKm} км`);
+      if (state.dps[8] !== undefined) parts.push(`Круиз: ${state.isCruiseOn ? 'ВКЛ' : 'ВЫКЛ'}`);
+      if (state.dps[9] !== undefined) parts.push(`Старт0: ${state.isZeroStart ? 'ВКЛ' : 'ВЫКЛ'}`);
+      if (state.dps[10] !== undefined) parts.push(`Лимит: ${state.speedLimit} км/ч`);
+
+      if (parts.length > 0) {
+        el.textContent = parts.join(' | ');
+        el.className = 'diag-val ok';
+      } else {
+        const keys = Object.keys(state.dps);
+        el.textContent = keys.length > 0 ? `Активны: ${keys.map(k => 'DP' + k).join(', ')}` : 'Ожидание данных...';
+      }
+    }
+
+    /* =========================================================
+       TUYA BLE CHANNEL ACK & FLOW CONTROL
+       ========================================================= */
+
+    async function sendTuyaChannelAck(status, sn) {
+      state.tuyaChannel.ackCount++;
+      const ack = new Uint8Array(20);
+      ack[0] = 0x00; // Sequence number 0 (Flow control)
+      ack[1] = 0x00;
+      ack[2] = 0x01; // Flow packet type: ACK (0x01)
+      ack[3] = 0x00; // Command: 0x00
+      ack[4] = (status >> 8) & 0xff; // Status (0 = SUCCESS, 1 = READY)
+      ack[5] = status & 0xff;
+      ack[6] = (sn >> 8) & 0xff;     // Acknowledged packet SN
+      ack[7] = sn & 0xff;
+      // Bytes 8..19 remain 0 (20-byte padding)
+
+      await sendRawToAppropriateChars(ack, 'fd50');
+      updatePacketsCounterUI();
+    }
+
+    function manualSendAck() {
+      const sn = state.tuyaChannel.lastSn || 0;
+      log(`Ручная отправка подтверждения ACK (SN: ${sn})...`, 'info');
+      sendTuyaChannelAck(0, sn);
+    }
+
+    /* =========================================================
        HEARTBEAT POLLING LOOP (AUTO-PULSE)
        ========================================================= */
 
     function startHeartbeatPoller() {
       stopHeartbeatPoller();
-      log('Запуск цикла опроса самоката (Heartbeat 400мс)...', 'info');
+      log('Запуск цикла опроса самоката (Heartbeat 800мс)...', 'info');
       // Send initial handshake burst
       sendTestHandshake();
-      state.heartbeatTimer = setInterval(pollScooter, 400);
+      state.heartbeatTimer = setInterval(pollScooter, 800);
     }
 
     function stopHeartbeatPoller() {
@@ -1338,8 +1417,18 @@
 
       const proto = state.selectedProtocol;
 
-      // 1. Tuya BLE Status Query
-      if (proto === 'auto' || proto === 'tuya') {
+      // 1. Tuya BLE Status Queries
+      if (proto === 'auto' || proto === 'tuya_channel' || proto === 'tuya') {
+        // A. Tuya Channel DataPacket query (Query all DPs): [seq_hi, seq_lo, 0x00, 0x08, 0x00, 0x00]
+        state.tuyaChannel.seqOut = ((state.tuyaChannel.seqOut) % 0x7fff) + 1;
+        const channelQuery = new Uint8Array([
+          (state.tuyaChannel.seqOut >> 8) & 0xff,
+          state.tuyaChannel.seqOut & 0xff,
+          0x00, 0x08, 0x00, 0x00
+        ]);
+        sendRawToAppropriateChars(channelQuery, 'fd50');
+
+        // B. Standard Tuya 55 AA serial query (cmd 0x08): 55 AA 00 08 00 00 07
         const tuyaQuery = new Uint8Array([0x55, 0xaa, 0x00, 0x08, 0x00, 0x00, 0x07]);
         sendRawToAppropriateChars(tuyaQuery, 'fd50');
       }
@@ -1356,7 +1445,7 @@
         sendRawToAppropriateChars(mrPoll, 'ffe0');
       }
 
-      // 4. Battery Service
+      // 4. Standard Battery Service
       if (state.batteryChar) {
         state.batteryChar.readValue().then(val => updateBattery(val.getUint8(0))).catch(() => {});
       }
@@ -1369,11 +1458,26 @@
 
     function sendTestHandshake() {
       log('Отправка рукопожатия / инициализации...', 'info');
-      // Tuya login / connect initiation
+
+      // A. Tuya Channel CTR Packet: 20 bytes [00 00 00 00 00 01 00...]
+      const ctrPacket = new Uint8Array(20);
+      ctrPacket[0] = 0x00; ctrPacket[1] = 0x00; // sn = 0
+      ctrPacket[2] = 0x00; ctrPacket[3] = 0x00; // type = 0 (CTR)
+      ctrPacket[4] = 0x00; ctrPacket[5] = 0x01; // frameCount = 1
+      sendRawToAllWriteChars(ctrPacket);
+
+      // B. Tuya Channel ACK Packet (announce ready)
+      sendTuyaChannelAck(1, 0);
+
+      // C. Tuya login / connect initiation (55 AA 00 01 00 00 00)
       const tuyaInit = new Uint8Array([0x55, 0xaa, 0x00, 0x01, 0x00, 0x00, 0x00]);
       sendRawToAllWriteChars(tuyaInit);
 
-      // Kugoo S1 initial wakeup
+      // D. Tuya query all DPs (55 AA 00 08 00 00 07)
+      const tuyaQuery = new Uint8Array([0x55, 0xaa, 0x00, 0x08, 0x00, 0x00, 0x07]);
+      sendRawToAllWriteChars(tuyaQuery);
+
+      // E. Kugoo S1 initial wakeup
       const lenzeInit = new Uint8Array([0xaa, 0x55, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56]);
       sendRawToAllWriteChars(lenzeInit);
     }
@@ -1392,14 +1496,78 @@
 
       const hexStr = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
       document.getElementById('diagLastHex').textContent = hexStr;
-      document.getElementById('diagPackets').textContent = `RX: ${state.rxPacketCount} | TX: ${state.txPacketCount}`;
+      updatePacketsCounterUI();
 
-      // Detailed logging for first 20 packets or upon request
+      // Detailed logging
       if (state.rxPacketCount <= 10 || state.rxPacketCount % 10 === 0) {
         log(`<< [RX:${bytes.length}b] ${hexStr}`, 'in');
       }
 
-      // Try decoders sequentially:
+      // 1. Tuya BLE Channel framing check (Sequence Number in first 2 bytes)
+      if (bytes.length >= 2) {
+        const sn = (bytes[0] << 8) | bytes[1];
+        if (sn === 0 && bytes.length >= 6) {
+          // Flow control packet (CTR or ACK)
+          const type = bytes[2];
+          if (type === 0x00) {
+            // CTRPacket: frames count in bytes 4-5
+            const frameCount = (bytes[4] << 8) | bytes[5];
+            state.tuyaChannel.expectedFrames = frameCount;
+            state.tuyaChannel.rxChunks.clear();
+            log(`⚡ [Tuya Channel] Входящая передача CTR: ожидается ${frameCount} кадров. Отправляем ACK READY...`, 'in');
+            sendTuyaChannelAck(1, 0); // status 1 = READY
+            markDetectedProtocol('tuya_channel', 'Tuya BLE Channel (Kugoo Riding)');
+            return;
+          } else if (type === 0x01) {
+            // ACKPacket from scooter
+            return;
+          }
+        } else if (sn > 0 && sn < 0x8000) {
+          // DataPacket
+          state.tuyaChannel.lastSn = sn;
+          const chunk = bytes.slice(2);
+          state.tuyaChannel.rxChunks.set(sn, chunk);
+
+          // Auto-reply with SUCCESS ACK for this sequence number so scooter continues streaming
+          sendTuyaChannelAck(0, sn);
+          markDetectedProtocol('tuya_channel', 'Tuya BLE Channel (Kugoo Riding)');
+
+          // Try parsing payload chunk immediately (in case single-frame telemetry)
+          parseAnyPayload(chunk);
+
+          // Check if reassembly of multi-frame transfer is complete
+          if (state.tuyaChannel.expectedFrames > 0 && state.tuyaChannel.rxChunks.size >= state.tuyaChannel.expectedFrames) {
+            let totalLen = 0;
+            for (let i = 1; i <= state.tuyaChannel.expectedFrames; i++) {
+              if (state.tuyaChannel.rxChunks.has(i)) totalLen += state.tuyaChannel.rxChunks.get(i).length;
+            }
+            const fullBuf = new Uint8Array(totalLen);
+            let pos = 0;
+            for (let i = 1; i <= state.tuyaChannel.expectedFrames; i++) {
+              const part = state.tuyaChannel.rxChunks.get(i);
+              if (part) {
+                fullBuf.set(part, pos);
+                pos += part.length;
+              }
+            }
+            // Strip CRC16 (last 2 bytes)
+            const payload = totalLen > 2 ? fullBuf.slice(0, totalLen - 2) : fullBuf;
+            log(`📦 [Tuya Channel] Собран пакет из ${state.tuyaChannel.expectedFrames} кадров (${payload.length} байт). Отправлен финишный ACK.`, 'in');
+            sendTuyaChannelAck(0, 0);
+            state.tuyaChannel.rxChunks.clear();
+            state.tuyaChannel.expectedFrames = 0;
+            parseAnyPayload(payload);
+          }
+          return;
+        }
+      }
+
+      // 2. Direct payload without Tuya Channel framing
+      parseAnyPayload(bytes);
+    }
+
+    function parseAnyPayload(bytes) {
+      if (!bytes || bytes.length === 0) return;
 
       // 1. Lenze / Kugoo S1/S2/S3 (Header: AA 55)
       if (bytes[0] === 0xaa && bytes[1] === 0x55) {
@@ -1422,7 +1590,7 @@
         }
       }
 
-      // 3. Raw Tuya TLV scan (even without 55 AA header)
+      // 3. Scan for Tuya BLE DP TLVs (both 1-byte length and 2-byte length)
       if (parseTuyaPacket(bytes)) {
         markDetectedProtocol('tuya', 'Tuya BLE (Kugoo Riding)');
         return;
@@ -1444,13 +1612,6 @@
     // Decoder 1: Kugoo S1/S2/S3 / Lenze protocol
     function parseKugooLenzeFrame(bytes) {
       if (bytes.length < 6) return false;
-      // In Kugoo S1 frame:
-      // Byte 0: 0xAA, Byte 1: 0x55
-      // Byte 2: Command/type
-      // Byte 3: Error code
-      // Byte 4: Speed (km/h)
-      // Byte 5: Battery % or voltage
-      // Byte 6: Gear/mode (1, 2, 3)
       const speed = bytes[4];
       const bat = bytes[5];
       const gear = bytes[6];
@@ -1464,7 +1625,6 @@
     // Decoder 2: MiniRobot / Xiaomi frame
     function parseMiniRobotFrame(bytes) {
       if (bytes.length >= 10 && bytes[2] >= 0x10) {
-        // Telemetry payload
         const rawSpeed = (bytes[4] | (bytes[5] << 8));
         const speed = rawSpeed > 1000 ? rawSpeed / 1000 : rawSpeed / 10;
         const bat = bytes[6];
@@ -1475,30 +1635,62 @@
       return false;
     }
 
-    // Decoder 3: Tuya TLV Data Points
+    // Decoder 3: Universal Tuya TLV Data Points (1-byte length & 2-byte length)
     function parseTuyaPacket(bytes) {
-      let offset = 0;
-      if (bytes[0] === 0x55 && bytes[1] === 0xaa) {
-        offset = 6;
-      } else if (bytes.length >= 5 && bytes[0] <= 0x05) {
-        offset = 4;
-      }
+      if (!bytes || bytes.length < 3) return false;
 
       let parsedAny = false;
-      while (offset + 4 <= bytes.length) {
-        const dpId = bytes[offset];
-        const dpType = bytes[offset + 1];
-        const dpLen = (bytes[offset + 2] << 8) | bytes[offset + 3];
-        offset += 4;
 
-        if (offset + dpLen > bytes.length || dpLen === 0) break;
-
-        const dpData = bytes.slice(offset, offset + dpLen);
-        offset += dpLen;
-
-        handleTuyaDP(dpId, dpType, dpData);
-        parsedAny = true;
+      // Scan starting from known offsets:
+      // A. Standard Tuya header 55 AA: header is 6 bytes (55 AA ver cmd len_hi len_lo)
+      // B. Ret frame with flag/command header (offset 10, 4, or 0)
+      let startOffsets = [0];
+      if (bytes[0] === 0x55 && bytes[1] === 0xaa && bytes.length >= 6) {
+        startOffsets = [6];
+      } else if (bytes.length >= 10 && (bytes[0] === 0x00 || bytes[0] === 0x40)) {
+        startOffsets = [10, 4, 0];
+      } else if (bytes.length >= 4 && bytes[0] <= 0x05) {
+        startOffsets = [4, 0];
       }
+
+      for (const startOffset of startOffsets) {
+        let offset = startOffset;
+        while (offset + 3 <= bytes.length) {
+          const dpId = bytes[offset];
+          const dpType = bytes[offset + 1];
+
+          // Check if candidate is a valid scooter DP (1 to 25) and valid dpType (0 to 5)
+          if (dpId >= 1 && dpId <= 25 && dpType >= 0 && dpType <= 5) {
+            // First check 1-byte length TLV: [dpId, dpType, dpLen, val...] (Standard Tuya BLE)
+            const dpLen1 = bytes[offset + 2];
+            if (dpLen1 >= 1 && dpLen1 <= 8 && offset + 3 + dpLen1 <= bytes.length) {
+              const dpData = bytes.slice(offset + 3, offset + 3 + dpLen1);
+              if (handleTuyaDP(dpId, dpType, dpData)) {
+                parsedAny = true;
+                offset += 3 + dpLen1;
+                continue;
+              }
+            }
+
+            // Second check 2-byte length TLV: [dpId, dpType, len_hi, len_lo, val...] (Tuya Serial)
+            if (offset + 4 <= bytes.length) {
+              const dpLen2 = (bytes[offset + 2] << 8) | bytes[offset + 3];
+              if (dpLen2 >= 1 && dpLen2 <= 8 && offset + 4 + dpLen2 <= bytes.length) {
+                const dpData = bytes.slice(offset + 4, offset + 4 + dpLen2);
+                if (handleTuyaDP(dpId, dpType, dpData)) {
+                  parsedAny = true;
+                  offset += 4 + dpLen2;
+                  continue;
+                }
+              }
+            }
+          }
+
+          offset++;
+        }
+        if (parsedAny) break;
+      }
+
       return parsedAny;
     }
 
@@ -1506,44 +1698,85 @@
       let intVal = 0;
       if (data.length === 1) intVal = data[0];
       else if (data.length === 2) intVal = (data[0] << 8) | data[1];
+      else if (data.length === 3) intVal = (data[0] << 16) | (data[1] << 8) | data[2];
       else if (data.length === 4) intVal = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
 
+      let recognized = false;
+
       switch (dpId) {
-        case 1:
-          if (dpType === 1) updateLock(data[0] === 1);
-          else if (dpType === 2) updateBattery(intVal);
-          break;
-        case 2:
-          if (dpType === 4 || dpType === 2) updateSpeedMode(intVal);
-          break;
-        case 3: // Speed
-          if (dpType === 2) {
-            const spd = intVal > 150 ? intVal / 10 : intVal;
-            updateSpeed(spd);
+        case 1: // Lock switch (Bool)
+          if (dpType === 1 || data.length === 1) {
+            updateLock(data[0] === 1);
+            recognized = true;
           }
           break;
-        case 4: // Battery
-          if (dpType === 2) updateBattery(intVal);
+        case 2: // Speed mode / Gear (Enum / Value: 1, 2, 3)
+          if (intVal >= 1 && intVal <= 3) {
+            updateSpeedMode(intVal);
+            recognized = true;
+          }
           break;
-        case 5: // ODO
-          if (dpType === 2) updateTotalKm(intVal / 10);
+        case 3: // Real-time Speed (Value: 0.1 km/h or km/h)
+          if (dpType === 2 || data.length >= 1) {
+            const spd = intVal > 99 ? intVal / 10 : intVal;
+            if (spd >= 0 && spd <= 99) {
+              updateSpeed(spd);
+              recognized = true;
+            }
+          }
           break;
-        case 6: // Trip
-          if (dpType === 2) updateTripKm(intVal / 10);
+        case 4: // Battery percentage (0-100%)
+          if (intVal >= 0 && intVal <= 100) {
+            updateBattery(intVal);
+            recognized = true;
+          }
           break;
-        case 7: // Headlight
-          if (dpType === 1) updateHeadlight(data[0] === 1);
+        case 5: // Total distance (ODO: 0.1 km)
+          if (dpType === 2 || data.length >= 2) {
+            const odo = intVal > 50000 ? intVal / 100 : intVal / 10;
+            updateTotalKm(odo);
+            recognized = true;
+          }
           break;
-        case 8: // Cruise
-          if (dpType === 1) updateCruise(data[0] === 1);
+        case 6: // Trip distance (0.1 km)
+          if (dpType === 2 || data.length >= 1) {
+            const trip = intVal > 5000 ? intVal / 100 : intVal / 10;
+            updateTripKm(trip);
+            recognized = true;
+          }
           break;
-        case 9: // Zero start
-          if (dpType === 1 || dpType === 4) updateZeroStart(data[0] === 1);
+        case 7: // Headlight switch (Bool)
+          if (dpType === 1 || data.length === 1) {
+            updateHeadlight(data[0] === 1);
+            recognized = true;
+          }
           break;
-        case 10: // Speed limit
-          if (dpType === 2) updateSpeedLimitUI(intVal);
+        case 8: // Cruise control (Bool)
+          if (dpType === 1 || data.length === 1) {
+            updateCruise(data[0] === 1);
+            recognized = true;
+          }
+          break;
+        case 9: // Zero start (Bool)
+          if (dpType === 1 || dpType === 4 || data.length === 1) {
+            updateZeroStart(data[0] === 1);
+            recognized = true;
+          }
+          break;
+        case 10: // Speed limit (Value: km/h)
+          if (intVal >= 5 && intVal <= 60) {
+            updateSpeedLimitUI(intVal);
+            recognized = true;
+          }
           break;
       }
+
+      if (recognized) {
+        state.dps[dpId] = { type: dpType, val: intVal, raw: Array.from(data) };
+        updateDpsDiagnosticUI();
+      }
+
+      return recognized;
     }
 
     // Decoder 4: Heuristic fallback
@@ -1573,6 +1806,7 @@
           state.txPacketCount++;
         } catch (e) {}
       }
+      updatePacketsCounterUI();
     }
 
     async function sendRawToAppropriateChars(dataBytes, preferredServiceKeyword) {
@@ -1593,6 +1827,34 @@
       if (!sent) {
         sendRawToAllWriteChars(dataBytes);
       }
+      updatePacketsCounterUI();
+    }
+
+    function makeTuyaDpFrames(dpId, dpType, valBytes) {
+      // 1-byte length TLV: [dpId, dpType, len, ...valBytes]
+      const tlv1 = [dpId, dpType, valBytes.length, ...valBytes];
+
+      // A. Standard Tuya 55 AA serial frame
+      const payloadLen = tlv1.length;
+      const header = [0x55, 0xaa, 0x00, 0x06, (payloadLen >> 8) & 0xff, payloadLen & 0xff];
+      const frame55 = [...header, ...tlv1];
+      let sum = 0;
+      for (const b of frame55) sum = (sum + b) & 0xff;
+      frame55.push(sum);
+
+      // B. Tuya BLE Channel DataPacket: [seq_hi, seq_lo, ...tlv1]
+      state.tuyaChannel.seqOut = ((state.tuyaChannel.seqOut) % 0x7fff) + 1;
+      const channelPacket = [
+        (state.tuyaChannel.seqOut >> 8) & 0xff,
+        state.tuyaChannel.seqOut & 0xff,
+        ...tlv1
+      ];
+
+      return {
+        channel: new Uint8Array(channelPacket),
+        standard: new Uint8Array(frame55),
+        rawTlv: new Uint8Array(tlv1)
+      };
     }
 
     // 1. SPEED MODE / GEAR (Регулировка скорости 1, 2, 3)
@@ -1602,9 +1864,11 @@
 
       log(`Отправка переключения режима скорости: ${mode}...`, 'out');
 
-      // A. Tuya DP 2 (Enum: mode)
-      const tuyaMode = makeTuyaDpFrame(2, 4, [mode]);
-      sendRawToAllWriteChars(tuyaMode);
+      // A. Tuya Frames (Channel DataPacket + Standard 55 AA + Raw TLV)
+      const tuya = makeTuyaDpFrames(2, 4, [mode]);
+      sendRawToAllWriteChars(tuya.channel);
+      sendRawToAllWriteChars(tuya.standard);
+      sendRawToAllWriteChars(tuya.rawTlv);
 
       // B. Kugoo S1 / Lenze gear packet: [AA 55 02 mode 00 00 00 00 checksum]
       const sum = (0xaa + 0x55 + 0x02 + mode) & 0xff;
@@ -1638,8 +1902,10 @@
 
       // Tuya DP 10 (Integer: speed_limit)
       const valBytes = [(limit >> 24) & 0xff, (limit >> 16) & 0xff, (limit >> 8) & 0xff, limit & 0xff];
-      const tuyaLimit = makeTuyaDpFrame(10, 2, valBytes);
-      sendRawToAllWriteChars(tuyaLimit);
+      const tuya = makeTuyaDpFrames(10, 2, valBytes);
+      sendRawToAllWriteChars(tuya.channel);
+      sendRawToAllWriteChars(tuya.standard);
+      sendRawToAllWriteChars(tuya.rawTlv);
 
       // Lenze limit packet
       const sum = (0xaa + 0x55 + 0x03 + limit) & 0xff;
@@ -1654,8 +1920,10 @@
       playBeep(next ? 1200 : 700, 0.08);
 
       // Tuya DP 7
-      const tuyaLight = makeTuyaDpFrame(7, 1, [next ? 1 : 0]);
-      sendRawToAllWriteChars(tuyaLight);
+      const tuya = makeTuyaDpFrames(7, 1, [next ? 1 : 0]);
+      sendRawToAllWriteChars(tuya.channel);
+      sendRawToAllWriteChars(tuya.standard);
+      sendRawToAllWriteChars(tuya.rawTlv);
 
       // Lenze Light
       const sum = (0xaa + 0x55 + 0x04 + (next ? 1 : 0)) & 0xff;
@@ -1672,8 +1940,10 @@
       playBeep(next ? 500 : 1000, 0.12);
 
       // Tuya DP 1
-      const tuyaLock = makeTuyaDpFrame(1, 1, [next ? 1 : 0]);
-      sendRawToAllWriteChars(tuyaLock);
+      const tuya = makeTuyaDpFrames(1, 1, [next ? 1 : 0]);
+      sendRawToAllWriteChars(tuya.channel);
+      sendRawToAllWriteChars(tuya.standard);
+      sendRawToAllWriteChars(tuya.rawTlv);
 
       // Lenze Lock
       const sum = (0xaa + 0x55 + 0x05 + (next ? 1 : 0)) & 0xff;
@@ -1689,8 +1959,10 @@
       updateCruise(next);
       playBeep(1100, 0.08);
 
-      const tuyaCruise = makeTuyaDpFrame(8, 1, [next ? 1 : 0]);
-      sendRawToAllWriteChars(tuyaCruise);
+      const tuya = makeTuyaDpFrames(8, 1, [next ? 1 : 0]);
+      sendRawToAllWriteChars(tuya.channel);
+      sendRawToAllWriteChars(tuya.standard);
+      sendRawToAllWriteChars(tuya.rawTlv);
 
       log(`Круиз: ${next ? 'ВКЛ' : 'ВЫКЛ'}`, 'out');
     }
@@ -1701,8 +1973,10 @@
       updateZeroStart(next);
       playBeep(1150, 0.08);
 
-      const tuyaZero = makeTuyaDpFrame(9, 1, [next ? 1 : 0]);
-      sendRawToAllWriteChars(tuyaZero);
+      const tuya = makeTuyaDpFrames(9, 1, [next ? 1 : 0]);
+      sendRawToAllWriteChars(tuya.channel);
+      sendRawToAllWriteChars(tuya.standard);
+      sendRawToAllWriteChars(tuya.rawTlv);
 
       log(`Старт с 0: ${next ? 'ВКЛ' : 'ВЫКЛ'}`, 'out');
     }
