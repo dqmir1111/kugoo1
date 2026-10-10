@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kugoo Scooter Dashboard | Web Bluetooth</title>
+  <title>Kugoo 2.0</title>
   <style>
     :root {
       --bg-primary: #0a0e17;
@@ -45,7 +45,7 @@
 
     .container {
       width: 100%;
-      max-width: 480px;
+      max-width: 500px;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -56,7 +56,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 4px;
+      padding: 6px 4px;
     }
 
     .logo-area {
@@ -80,7 +80,7 @@
     }
 
     .brand-title {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 800;
       letter-spacing: 1px;
       text-transform: uppercase;
@@ -223,57 +223,70 @@
       box-shadow: 0 4px 20px rgba(255, 82, 82, 0.35);
     }
 
-    .sim-toggle-row {
+    /* Diagnostics Card */
+    .diag-card {
+      background: #0d131f;
+      border: 1px solid #1f2a40;
+      border-radius: 16px;
+      padding: 14px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .diag-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 4px;
-      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    .diag-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 6px;
+    }
+
+    .diag-label {
       color: var(--text-muted);
     }
 
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
+    .diag-val {
+      font-weight: 600;
+      color: #fff;
+      font-family: "Courier New", Courier, monospace;
+      text-align: right;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
+    .diag-val.ok { color: var(--accent-green); }
+    .diag-val.warn { color: var(--accent-orange); }
+    .diag-val.err { color: var(--accent-red); }
+
+    .diag-controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
     }
 
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: var(--bg-card-sub);
+    select.protocol-select {
+      background: var(--bg-card-sub);
+      color: var(--text-main);
       border: 1px solid var(--border-color);
-      transition: .3s;
-      border-radius: 24px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 16px;
-      width: 16px;
-      left: 3px;
-      bottom: 3px;
-      background-color: #fff;
-      transition: .3s;
-      border-radius: 50%;
-    }
-
-    input:checked + .slider {
-      background-color: var(--accent-orange);
-      border-color: var(--accent-orange);
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(20px);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+      flex: 1;
     }
 
     /* Speedometer Card */
@@ -453,7 +466,7 @@
 
     .battery-bar-inner {
       height: 100%;
-      width: 85%;
+      width: 0%;
       border-radius: 8px;
       background: linear-gradient(90deg, #00e676, #00f2fe);
       box-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
@@ -544,18 +557,19 @@
     .gear-cycle-btn {
       width: 100%;
       margin-top: 10px;
-      padding: 12px;
+      padding: 14px;
       border-radius: 12px;
-      background: var(--bg-card-sub);
-      border: 1px solid var(--border-color);
+      background: linear-gradient(135deg, #1b263b, #151d2d);
+      border: 1px solid var(--accent-cyan);
       color: var(--accent-cyan);
-      font-weight: 700;
-      font-size: 13px;
+      font-weight: 800;
+      font-size: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
       cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 242, 254, 0.15);
       transition: all 0.2s;
     }
 
@@ -681,7 +695,7 @@
     }
 
     .log-box {
-      max-height: 120px;
+      max-height: 180px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
@@ -693,7 +707,7 @@
     }
 
     .log-line {
-      line-height: 1.3;
+      line-height: 1.35;
     }
 
     .log-line.in { color: #00e676; }
@@ -718,7 +732,7 @@
         <div class="logo-icon">K</div>
         <div>
           <div class="brand-title">KUGOO RIDING</div>
-          <div class="brand-subtitle">Web Bluetooth BLE</div>
+          <div class="brand-subtitle">Universal Web Bluetooth</div>
         </div>
       </div>
       <div id="statusBadge" class="status-badge disconnected">
@@ -727,12 +741,12 @@
       </div>
     </header>
 
-    <!-- iOS Bluefy Detection Banner -->
+    <!-- iOS Bluefy Notice Banner -->
     <div id="iosBanner" class="banner ios-warning" style="display: none;">
       <div class="banner-title">
         <span>⚠️ Внимание для iOS (iPhone / iPad)</span>
       </div>
-      <div>Стандартный браузер Safari не поддерживает Web Bluetooth. Для подключения к самокату используйте бесплатный браузер <b>Bluefy - Web BLE Browser</b> из App Store.</div>
+      <div>Стандартный браузер Safari не поддерживает Web Bluetooth. Для подключения к самокату используйте браузер <b>Bluefy - Web BLE Browser</b> из App Store.</div>
       <div class="banner-btn-group">
         <button class="btn-secondary" onclick="copyCurrentUrl()">📋 Скопировать ссылку</button>
         <a id="bluefyLink" href="#" class="btn-secondary">🚀 Открыть в Bluefy</a>
@@ -747,13 +761,55 @@
         </svg>
         <span id="connectBtnLabel">Найти самокат</span>
       </button>
+    </div>
 
-      <div class="sim-toggle-row">
-        <span>🧪 Режим симуляции (демо без самоката)</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="simToggle" onchange="toggleSimulation(this.checked)">
-          <span class="slider"></span>
-        </label>
+    <!-- Live Diagnostics & GATT Status -->
+    <div class="diag-card">
+      <div class="diag-header">
+        <span>🔍 ДИАГНОСТИКА ПОДКЛЮЧЕНИЯ</span>
+        <span id="diagStatus" style="font-size: 11px; color: var(--text-muted);">Ожидание устройства</span>
+      </div>
+
+      <div class="diag-row">
+        <span class="diag-label">Устройство:</span>
+        <span id="diagDeviceName" class="diag-val">Не выбрано</span>
+      </div>
+
+      <div class="diag-row">
+        <span class="diag-label">Сервисы GATT:</span>
+        <span id="diagServices" class="diag-val">0 найдено</span>
+      </div>
+
+      <div class="diag-row">
+        <span class="diag-label">Канал записи (TX):</span>
+        <span id="diagWriteStatus" class="diag-val warn">Не готов</span>
+      </div>
+
+      <div class="diag-row">
+        <span class="diag-label">Канал чтения (RX):</span>
+        <span id="diagNotifyStatus" class="diag-val warn">0 подписок</span>
+      </div>
+
+      <div class="diag-row">
+        <span class="diag-label">Пакеты (RX / TX):</span>
+        <span id="diagPackets" class="diag-val">RX: 0 | TX: 0</span>
+      </div>
+
+      <div class="diag-row">
+        <span class="diag-label">Посл. данные (HEX):</span>
+        <span id="diagLastHex" class="diag-val" style="color:var(--accent-cyan); font-size:10px;">--</span>
+      </div>
+
+      <div class="diag-controls">
+        <select id="protocolSelector" class="protocol-select" onchange="onProtocolChange(this.value)">
+          <option value="auto">Режим: АВТО (все протоколы)</option>
+          <option value="tuya">Протокол: Tuya BLE (Kugoo Riding OEM)</option>
+          <option value="kugoo_lenze">Протокол: Kugoo S1/S2/S3 (Lenze AA 55)</option>
+          <option value="minirobot">Протокол: MiniRobot / Clone (55 AA)</option>
+          <option value="nus">Протокол: Nordic UART (NUS)</option>
+        </select>
+        <button class="btn-secondary" onclick="manualPoll()">🔄 Опрос</button>
+        <button class="btn-secondary" onclick="sendTestHandshake()">⚡ Рукопожатие</button>
       </div>
     </div>
 
@@ -793,10 +849,10 @@
         </div>
         <div class="battery-info-row">
           <div class="battery-percent">
-            <span id="batteryDisplay" style="font-size:36px; color:var(--text-main); font-weight:900;">0</span>
+            <span id="batteryDisplay" style="font-size:36px; color:var(--text-main); font-weight:900;">--</span>
             <span>%</span>
           </div>
-          <div id="batteryStatus" class="battery-status-text">Ожидание...</div>
+          <div id="batteryStatus" class="battery-status-text">Ожидание данных...</div>
         </div>
         <div class="battery-bar-outer">
           <div id="batteryBar" class="battery-bar-inner" style="width: 0%;"></div>
@@ -848,7 +904,7 @@
         </div>
 
         <button class="gear-cycle-btn" onclick="cycleSpeedMode()">
-          <span>⚡ Переключить передачу (след. режим)</span>
+          <span>⚡ ПЕРЕКЛЮЧИТЬ ПЕРЕДАЧУ (СЛЕДУЮЩИЙ РЕЖИМ)</span>
         </button>
 
         <div class="speed-limit-section">
@@ -887,10 +943,13 @@
       <div class="card log-card">
         <div class="log-header">
           <span>📡 BLE ТЕРМИНАЛ / ПАКЕТЫ</span>
-          <button class="btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="clearLogs()">Очистить</button>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="copyLog()">Скопировать лог</button>
+            <button class="btn-secondary" style="padding: 2px 8px; font-size: 10px;" onclick="clearLogs()">Очистить</button>
+          </div>
         </div>
         <div id="logBox" class="log-box">
-          <div class="log-line info">[SYS] Готов к поиску самоката Kugoo...</div>
+          <div class="log-line info">[SYS] Готов к поиску самоката Kugoo. Нажмите кнопку «Найти самокат».</div>
         </div>
       </div>
 
@@ -900,64 +959,71 @@
 
   <script>
     /* =========================================================
-       KUGOO RIDING 2.0 BLE CLIENT ENGINE
-       Supports:
-        - Tuya BLE FD50 / 1910 (Kugoo Riding OEM app protocol)
-        - Nordic UART Service (NUS)
-        - BLE Serial FFE0 / FFF0 / FEE7 (Kugoo S1/S3/M4)
-        - Live Speed, Battery %, Gear/Mode adjustment
+       KUGOO SCOOTER UNIVERSAL BLE ENGINE v2.0
+       Features:
+        - Universal Dynamic GATT discovery (finds any service/char)
+        - Multi-Protocol Auto-Detection (Tuya BLE, Lenze S1/S3, MiniRobot, NUS)
+        - Periodic Keep-Alive / Polling Heartbeat
+        - Real-time Diagnostics HUD
        ========================================================= */
 
-    // BLE Service & Characteristic UUIDs
-    const UUIDS = {
-      // Tuya Primary BLE Service (from Kugoo Riding 2.0 APK)
-      TUYA_FD50_SERVICE: '0000fd50-0000-1000-8000-00805f9b34fb',
-      TUYA_FD50_WRITE:   '00000001-0000-1001-8001-00805f9b07d0',
-      TUYA_FD50_NOTIFY:  '00000002-0000-1001-8001-00805f9b07d0',
-
-      // Tuya Legacy BLE Service
-      TUYA_1910_SERVICE: '00001910-0000-1000-8000-00805f9b34fb',
-      TUYA_1910_WRITE:   '00002b11-0000-1000-8000-00805f9b34fb',
-      TUYA_1910_NOTIFY:  '00002b10-0000-1000-8000-00805f9b34fb',
-
-      // Tuya Config Service
-      TUYA_1000_SERVICE: '00001000-7475-7961-626c-636f6e666967',
-
-      // Nordic UART Service (NUS)
-      NUS_SERVICE:       '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
-      NUS_RX:            '6e400002-b5a3-f393-e0a9-e50e24dcca9e', // Write to scooter
-      NUS_TX:            '6e400003-b5a3-f393-e0a9-e50e24dcca9e', // Notify from scooter
-
-      // Standard BLE Serial (HM-10)
-      FFE0_SERVICE:      '0000ffe0-0000-1000-8000-00805f9b34fb',
-      FFE1_CHAR:         '0000ffe1-0000-1000-8000-00805f9b34fb',
-
-      // Alternate BLE Serial
-      FFF0_SERVICE:      '0000fff0-0000-1000-8000-00805f9b34fb',
-
-      // Lenze / Kugoo S1
-      FEE7_SERVICE:      '0000fee7-0000-1000-8000-00805f9b34fb',
-
-      // Standard Battery Service
-      BATTERY_SERVICE:   '0000180f-0000-1000-8000-00805f9b34fb',
-      BATTERY_LEVEL:     '00002a19-0000-1000-8000-00805f9b34fb'
-    };
+    // Full set of possible scooter service UUIDs for requestDevice filter
+    const ALL_CANDIDATE_SERVICES = [
+      '0000fd50-0000-1000-8000-00805f9b34fb', // Tuya FD50
+      '00001910-0000-1000-8000-00805f9b34fb', // Tuya 1910
+      '00001912-0000-1000-8000-00805f9b34fb',
+      '00001920-0000-1000-8000-00805f9b34fb',
+      '00001000-7475-7961-626c-636f6e666967', // Tuya Config
+      '00010203-0405-0607-0809-0a0b0c0d1910',
+      '00010203-0405-0607-0809-0a0b0c0d1911',
+      '00010203-0405-0607-0809-0a0b0c0d1912',
+      '00010203-0405-0607-0809-0a0b0c0d1913',
+      '00010203-0405-0607-0809-0a0b0c0d1914',
+      '00010203-0405-0607-0809-0a0b0c0d2b12',
+      '6e400001-b5a3-f393-e0a9-e50e24dcca9e', // Nordic UART (NUS)
+      '0000ffe0-0000-1000-8000-00805f9b34fb', // Serial FFE0
+      '0000fff0-0000-1000-8000-00805f9b34fb', // Serial FFF0
+      '0000ffb0-0000-1000-8000-00805f9b34fb',
+      '0000ff00-0000-1000-8000-00805f9b34fb',
+      '0000fee7-0000-1000-8000-00805f9b34fb', // Lenze / Kugoo S1
+      '0000fee0-0000-1000-8000-00805f9b34fb',
+      '0000fee1-0000-1000-8000-00805f9b34fb',
+      '0000fef0-0000-1000-8000-00805f9b34fb',
+      '0000ae00-0000-1000-8000-00805f9b34fb',
+      '0000ae30-0000-1000-8000-00805f9b34fb',
+      '0000180f-0000-1000-8000-00805f9b34fb', // Battery service
+      '0000180a-0000-1000-8000-00805f9b34fb', // Device info
+      '00001800-0000-1000-8000-00805f9b34fb',
+      '00001801-0000-1000-8000-00805f9b34fb',
+      '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+    ];
 
     // State
     const state = {
       device: null,
       server: null,
-      writeChar: null,
-      notifyChar: null,
-      protocol: null, // 'tuya', 'nus', 'ffe0', 'standard'
       connected: false,
-      isSimulated: false,
 
-      // Scooter metrics
+      // Channels
+      writeCharacteristics: [], // array of characteristics capable of writing
+      notifyCharacteristics: [], // array of characteristics subscribed to notifications
+      batteryChar: null,
+
+      // Protocol selection & detection
+      selectedProtocol: 'auto', // 'auto', 'tuya', 'kugoo_lenze', 'minirobot', 'nus'
+      detectedProtocol: null,
+
+      // Counters
+      rxPacketCount: 0,
+      txPacketCount: 0,
+      lastRxTime: null,
+      heartbeatTimer: null,
+
+      // Metrics
       speed: 0,
       maxSpeed: 0,
-      battery: 0,
-      voltage: 0,
+      battery: null,
+      voltage: null,
       currentGear: 1, // 1: ECO, 2: DRIVE, 3: SPORT
       speedLimit: 25,
       isHeadlightOn: false,
@@ -968,7 +1034,7 @@
       totalKm: 0.0
     };
 
-    // Audio beep generator using Web Audio API for tactile scooter feedback
+    // Audio feedback
     const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
     function playBeep(freq = 880, duration = 0.08) {
       if (!audioCtx) return;
@@ -1002,7 +1068,16 @@
       document.getElementById('logBox').innerHTML = '';
     }
 
-    // Check iOS and Web Bluetooth support on startup
+    function copyLog() {
+      const text = Array.from(document.querySelectorAll('.log-line')).map(l => l.textContent).join('\n');
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Лог скопирован в буфер обмена!');
+      }).catch(() => {
+        prompt('Скопируйте лог вручную:', text);
+      });
+    }
+
+    // Init
     window.addEventListener('DOMContentLoaded', () => {
       checkEnvironment();
       updateDashboardUI();
@@ -1017,27 +1092,33 @@
         const currentUrl = window.location.href;
         document.getElementById('bluefyLink').href = `bluefy://open?url=${encodeURIComponent(currentUrl)}`;
         if (hasBle) {
-          log('[OK] Запущено в iOS через Web BLE (Bluefy)!', 'in');
+          log('[OK] Браузер поддерживает Web BLE (Bluefy на iOS)', 'in');
         } else {
-          log('[WARN] iOS Safari не поддерживает Bluetooth. Откройте в Bluefy!', 'err');
+          log('[ВНИМАНИЕ] iOS Safari не поддерживает BLE. Откройте эту ссылку в Bluefy!', 'err');
         }
       } else if (!hasBle) {
-        log('[WARN] Web Bluetooth не поддерживается данным браузером. Используйте Chrome / Edge.', 'err');
+        log('[ОШИБКА] Web Bluetooth не поддерживается этим браузером. Используйте Chrome или Edge.', 'err');
       } else {
-        log('[OK] Web Bluetooth API поддерживается.', 'in');
+        log('[OK] Web Bluetooth API доступен ✓', 'in');
       }
     }
 
     function copyCurrentUrl() {
       navigator.clipboard.writeText(window.location.href).then(() => {
-        alert('Ссылка скопирована! Вставьте её в строку адреса приложения Bluefy.');
+        alert('Ссылка скопирована! Откройте Bluefy и вставьте её.');
       }).catch(() => {
-        prompt('Скопируйте ссылку:', window.location.href);
+        prompt('Ссылка:', window.location.href);
       });
     }
 
+    function onProtocolChange(val) {
+      state.selectedProtocol = val;
+      log(`Режим протокола изменен на: ${val.toUpperCase()}`, 'info');
+      manualPoll();
+    }
+
     /* =========================================================
-       BLUETOOTH SCAN & CONNECTION
+       UNIVERSAL BLUETOOTH SCAN & CONNECT
        ========================================================= */
 
     async function handleConnectToggle() {
@@ -1050,137 +1131,173 @@
 
     async function connectDevice() {
       if (!navigator.bluetooth) {
-        alert('Web Bluetooth API не поддерживается вашим браузером.\n\n• На iPhone / iPad: используйте бесплатный браузер Bluefy.\n• На Android / ПК: используйте Google Chrome или Microsoft Edge.');
+        alert('Web Bluetooth API не поддерживается.\n\n• На iPhone/iPad: откройте страницу в бесплатном браузере Bluefy.\n• На Android/ПК: откройте страницу в Google Chrome или Microsoft Edge.');
         return;
       }
 
       updateStatus('connecting', 'Поиск...');
-      log('Запрос Bluetooth устройства...', 'info');
+      log('Открытие окна поиска Bluetooth...', 'info');
       playBeep(600, 0.05);
 
       try {
-        // Request device with all potential Kugoo & Tuya services
         const device = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
-          optionalServices: [
-            UUIDS.TUYA_FD50_SERVICE,
-            UUIDS.TUYA_1910_SERVICE,
-            UUIDS.TUYA_1000_SERVICE,
-            UUIDS.NUS_SERVICE,
-            UUIDS.FFE0_SERVICE,
-            UUIDS.FFF0_SERVICE,
-            UUIDS.FEE7_SERVICE,
-            UUIDS.BATTERY_SERVICE
-          ]
+          optionalServices: ALL_CANDIDATE_SERVICES
         });
 
         state.device = device;
-        log(`Выбран самокат: ${device.name || 'Безымянное устройство'} [${device.id}]`, 'in');
+        const devName = device.name || 'Безымянный самокат';
+        log(`Выбрано устройство: "${devName}" (ID: ${device.id})`, 'in');
+        document.getElementById('diagDeviceName').textContent = devName;
+        document.getElementById('diagDeviceName').className = 'diag-val ok';
+
         device.addEventListener('gattserverdisconnected', onDisconnected);
 
-        // Connect GATT Server
-        log('Подключение к GATT серверу...', 'info');
+        log('Подключение к GATT серверу самоката...', 'info');
         const server = await device.gatt.connect();
         state.server = server;
+        log('GATT сервер успешно подключен ✓', 'in');
 
-        // Discover services
-        log('Поиск характеристик самоката...', 'info');
-        await discoverServices(server);
+        // Dynamic Universal Discovery
+        await discoverAllServicesAndCharacteristics(server);
 
-        state.connected = true;
-        updateStatus('connected', device.name || 'Kugoo Connected');
-        document.getElementById('connectBtnLabel').textContent = 'Отключить';
-        document.getElementById('btnConnect').classList.add('connected-mode');
-        playBeep(1200, 0.15);
+        if (state.writeCharacteristics.length === 0 && state.notifyCharacteristics.length === 0) {
+          log('[ВНИМАНИЕ] Не удалось найти подходящие каналы связи. Проверьте разрешения!', 'err');
+          document.getElementById('diagStatus').textContent = 'Каналы связи не найдены';
+          document.getElementById('diagStatus').style.color = 'var(--accent-red)';
+        } else {
+          state.connected = true;
+          updateStatus('connected', devName);
+          document.getElementById('connectBtnLabel').textContent = 'Отключить';
+          document.getElementById('btnConnect').classList.add('connected-mode');
+          document.getElementById('diagStatus').textContent = 'Подключено и готово';
+          document.getElementById('diagStatus').style.color = 'var(--accent-green)';
+          playBeep(1200, 0.15);
 
-        // Query initial status
-        queryScooterStatus();
+          // Start Heartbeat Poller
+          startHeartbeatPoller();
+        }
 
       } catch (err) {
         log(`Ошибка подключения: ${err.message}`, 'err');
         updateStatus('disconnected', 'Отключено');
-        console.error(err);
+        document.getElementById('diagStatus').textContent = 'Ошибка: ' + err.message;
+        document.getElementById('diagStatus').style.color = 'var(--accent-red)';
       }
     }
 
-    async function discoverServices(server) {
-      // 1. Check Tuya FD50 (Kugoo Riding 2.0 app default)
+    async function discoverAllServicesAndCharacteristics(server) {
+      log('Сканирование первичных сервисов GATT...', 'info');
+      state.writeCharacteristics = [];
+      state.notifyCharacteristics = [];
+      state.batteryChar = null;
+
+      let primaryServices = [];
       try {
-        const tuyaService = await server.getPrimaryService(UUIDS.TUYA_FD50_SERVICE);
-        state.writeChar = await tuyaService.getCharacteristic(UUIDS.TUYA_FD50_WRITE);
-        state.notifyChar = await tuyaService.getCharacteristic(UUIDS.TUYA_FD50_NOTIFY);
-        state.protocol = 'tuya';
-        log('Обнаружен Tuya BLE протокол (FD50)', 'in');
-        await setupNotifications(state.notifyChar);
+        primaryServices = await server.getPrimaryServices();
+      } catch (e) {
+        log(`Ошибка получения сервисов: ${e.message}`, 'err');
         return;
-      } catch (e) {}
+      }
 
-      // 2. Check Tuya 1910 (Legacy)
-      try {
-        const tuyaService = await server.getPrimaryService(UUIDS.TUYA_1910_SERVICE);
-        state.writeChar = await tuyaService.getCharacteristic(UUIDS.TUYA_1910_WRITE);
-        state.notifyChar = await tuyaService.getCharacteristic(UUIDS.TUYA_1910_NOTIFY);
-        state.protocol = 'tuya';
-        log('Обнаружен Tuya BLE протокол (1910)', 'in');
-        await setupNotifications(state.notifyChar);
-        return;
-      } catch (e) {}
+      log(`Найдено сервисов: ${primaryServices.length}`, 'in');
+      document.getElementById('diagServices').textContent = `${primaryServices.length} шт.`;
 
-      // 3. Check Nordic UART (NUS)
-      try {
-        const nusService = await server.getPrimaryService(UUIDS.NUS_SERVICE);
-        state.writeChar = await nusService.getCharacteristic(UUIDS.NUS_RX);
-        state.notifyChar = await nusService.getCharacteristic(UUIDS.NUS_TX);
-        state.protocol = 'nus';
-        log('Обнаружен Nordic UART Service (NUS)', 'in');
-        await setupNotifications(state.notifyChar);
-        return;
-      } catch (e) {}
+      for (const service of primaryServices) {
+        const sUuid = service.uuid.toLowerCase();
+        const shortUuid = getShortUuid(sUuid);
+        log(`→ Сервис: ${shortUuid} (${sUuid})`, 'info');
 
-      // 4. Check FFE0 UART
-      try {
-        const ffeService = await server.getPrimaryService(UUIDS.FFE0_SERVICE);
-        state.writeChar = await ffeService.getCharacteristic(UUIDS.FFE1_CHAR);
-        state.notifyChar = state.writeChar;
-        state.protocol = 'ffe0';
-        log('Обнаружен стандартный Serial BLE (FFE0)', 'in');
-        await setupNotifications(state.notifyChar);
-        return;
-      } catch (e) {}
+        let chars = [];
+        try {
+          chars = await service.getCharacteristics();
+        } catch (e) {
+          log(`  Не удалось прочитать характеристики сервиса: ${e.message}`, 'warn');
+          continue;
+        }
 
-      // 5. Standard Battery service fallback
-      try {
-        const batService = await server.getPrimaryService(UUIDS.BATTERY_SERVICE);
-        const batChar = await batService.getCharacteristic(UUIDS.BATTERY_LEVEL);
-        await batChar.startNotifications();
-        batChar.addEventListener('characteristicvaluechanged', (ev) => {
-          const val = ev.target.value.getUint8(0);
-          updateBattery(val);
-        });
-        const initialBat = await batChar.readValue();
-        updateBattery(initialBat.getUint8(0));
-        log('Обнаружен стандартный Battery Service (0x180F)', 'in');
-      } catch (e) {}
+        for (const ch of chars) {
+          const chUuid = ch.uuid.toLowerCase();
+          const chShort = getShortUuid(chUuid);
+          const props = [];
+          if (ch.properties.read) props.push('READ');
+          if (ch.properties.write) props.push('WRITE');
+          if (ch.properties.writeWithoutResponse) props.push('WRITE_NO_RESP');
+          if (ch.properties.notify) props.push('NOTIFY');
+          if (ch.properties.indicate) props.push('INDICATE');
 
-      log('Базовое подключение установлено', 'info');
+          log(`   • Характеристика: ${chShort} [${props.join(', ')}]`, 'info');
+
+          // Check for notifications
+          if (ch.properties.notify || ch.properties.indicate) {
+            try {
+              await ch.startNotifications();
+              ch.addEventListener('characteristicvaluechanged', (ev) => handleIncomingData(ev, ch, service));
+              state.notifyCharacteristics.push(ch);
+              log(`     ✓ Подписались на уведомления RX: ${chShort}`, 'in');
+            } catch (err) {
+              log(`     ✗ Не удалось подписаться на ${chShort}: ${err.message}`, 'err');
+            }
+          }
+
+          // Check for write capability
+          if (ch.properties.write || ch.properties.writeWithoutResponse) {
+            state.writeCharacteristics.push(ch);
+          }
+
+          // Check for standard battery level
+          if (chUuid.includes('2a19')) {
+            state.batteryChar = ch;
+            try {
+              const val = await ch.readValue();
+              updateBattery(val.getUint8(0));
+              log(`     [Батарея] Прочитано напрямую: ${val.getUint8(0)}%`, 'in');
+            } catch (e) {}
+          }
+        }
+      }
+
+      // Update Diagnostics HUD
+      const writeStatusEl = document.getElementById('diagWriteStatus');
+      if (state.writeCharacteristics.length > 0) {
+        writeStatusEl.textContent = `${state.writeCharacteristics.length} активных`;
+        writeStatusEl.className = 'diag-val ok';
+      } else {
+        writeStatusEl.textContent = 'Нет канала записи';
+        writeStatusEl.className = 'diag-val err';
+      }
+
+      const notifyStatusEl = document.getElementById('diagNotifyStatus');
+      if (state.notifyCharacteristics.length > 0) {
+        notifyStatusEl.textContent = `${state.notifyCharacteristics.length} подписок`;
+        notifyStatusEl.className = 'diag-val ok';
+      } else {
+        notifyStatusEl.textContent = '0 подписок (нет RX)';
+        notifyStatusEl.className = 'diag-val err';
+      }
     }
 
-    async function setupNotifications(char) {
-      if (!char) return;
-      await char.startNotifications();
-      char.addEventListener('characteristicvaluechanged', handleIncomingData);
-      log('Подписка на уведомления BLE активна ✓', 'in');
+    function getShortUuid(uuid) {
+      if (uuid.startsWith('0000') && uuid.endsWith('-0000-1000-8000-00805f9b34fb')) {
+        return '0x' + uuid.substring(4, 8).toUpperCase();
+      }
+      return uuid.substring(0, 8);
     }
 
     function onDisconnected() {
       state.connected = false;
       state.server = null;
-      state.writeChar = null;
-      state.notifyChar = null;
+      state.writeCharacteristics = [];
+      state.notifyCharacteristics = [];
+      state.batteryChar = null;
+      stopHeartbeatPoller();
+
       updateStatus('disconnected', 'Отключено');
       document.getElementById('connectBtnLabel').textContent = 'Найти самокат';
       document.getElementById('btnConnect').classList.remove('connected-mode');
-      log('Самокат отключен', 'err');
+      document.getElementById('diagStatus').textContent = 'Самокат отключен';
+      document.getElementById('diagStatus').style.color = 'var(--text-muted)';
+      log('Самокат отключен от Bluetooth', 'err');
       playBeep(440, 0.2);
     }
 
@@ -1198,84 +1315,198 @@
     }
 
     /* =========================================================
-       DATA PARSING (TUYA TLV & SCOOTER FRAMES)
+       HEARTBEAT POLLING LOOP (AUTO-PULSE)
        ========================================================= */
 
-    function handleIncomingData(event) {
+    function startHeartbeatPoller() {
+      stopHeartbeatPoller();
+      log('Запуск цикла опроса самоката (Heartbeat 400мс)...', 'info');
+      // Send initial handshake burst
+      sendTestHandshake();
+      state.heartbeatTimer = setInterval(pollScooter, 400);
+    }
+
+    function stopHeartbeatPoller() {
+      if (state.heartbeatTimer) {
+        clearInterval(state.heartbeatTimer);
+        state.heartbeatTimer = null;
+      }
+    }
+
+    function pollScooter() {
+      if (!state.connected || state.writeCharacteristics.length === 0) return;
+
+      const proto = state.selectedProtocol;
+
+      // 1. Tuya BLE Status Query
+      if (proto === 'auto' || proto === 'tuya') {
+        const tuyaQuery = new Uint8Array([0x55, 0xaa, 0x00, 0x08, 0x00, 0x00, 0x07]);
+        sendRawToAppropriateChars(tuyaQuery, 'fd50');
+      }
+
+      // 2. Kugoo S1/S2/S3 (Lenze AA 55) Poll frame
+      if (proto === 'auto' || proto === 'kugoo_lenze') {
+        const lenzePoll = new Uint8Array([0xaa, 0x55, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56]);
+        sendRawToAppropriateChars(lenzePoll, 'fee7');
+      }
+
+      // 3. MiniRobot / M365 Clone Poll Frame
+      if (proto === 'auto' || proto === 'minirobot') {
+        const mrPoll = new Uint8Array([0x55, 0xaa, 0x03, 0x20, 0x01, 0x31, 0x1e, 0x90, 0xfe]);
+        sendRawToAppropriateChars(mrPoll, 'ffe0');
+      }
+
+      // 4. Battery Service
+      if (state.batteryChar) {
+        state.batteryChar.readValue().then(val => updateBattery(val.getUint8(0))).catch(() => {});
+      }
+    }
+
+    function manualPoll() {
+      log('Ручной опрос самоката...', 'info');
+      pollScooter();
+    }
+
+    function sendTestHandshake() {
+      log('Отправка рукопожатия / инициализации...', 'info');
+      // Tuya login / connect initiation
+      const tuyaInit = new Uint8Array([0x55, 0xaa, 0x00, 0x01, 0x00, 0x00, 0x00]);
+      sendRawToAllWriteChars(tuyaInit);
+
+      // Kugoo S1 initial wakeup
+      const lenzeInit = new Uint8Array([0xaa, 0x55, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56]);
+      sendRawToAllWriteChars(lenzeInit);
+    }
+
+    /* =========================================================
+       RAW DATA RECEIVER & MULTI-PROTOCOL DECODERS
+       ========================================================= */
+
+    function handleIncomingData(event, characteristic, service) {
       const value = event.target.value;
       const bytes = new Uint8Array(value.buffer);
+      if (bytes.length === 0) return;
+
+      state.rxPacketCount++;
+      state.lastRxTime = Date.now();
+
       const hexStr = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
-      log(`<< [RX] ${hexStr}`, 'in');
+      document.getElementById('diagLastHex').textContent = hexStr;
+      document.getElementById('diagPackets').textContent = `RX: ${state.rxPacketCount} | TX: ${state.txPacketCount}`;
 
-      // 1. Try Tuya TLV parsing
-      if (state.protocol === 'tuya') {
-        parseTuyaPacket(bytes);
+      // Detailed logging for first 20 packets or upon request
+      if (state.rxPacketCount <= 10 || state.rxPacketCount % 10 === 0) {
+        log(`<< [RX:${bytes.length}b] ${hexStr}`, 'in');
+      }
+
+      // Try decoders sequentially:
+
+      // 1. Lenze / Kugoo S1/S2/S3 (Header: AA 55)
+      if (bytes[0] === 0xaa && bytes[1] === 0x55) {
+        if (parseKugooLenzeFrame(bytes)) {
+          markDetectedProtocol('kugoo_lenze', 'Kugoo S1/S3 (Lenze)');
+          return;
+        }
+      }
+
+      // 2. MiniRobot / Xiaomi format (Header: 55 AA, length > 6)
+      if (bytes[0] === 0x55 && bytes[1] === 0xaa) {
+        if (parseMiniRobotFrame(bytes)) {
+          markDetectedProtocol('minirobot', 'MiniRobot / Clone (55 AA)');
+          return;
+        }
+        // Could be Tuya BLE frame!
+        if (parseTuyaPacket(bytes)) {
+          markDetectedProtocol('tuya', 'Tuya BLE (Kugoo Riding)');
+          return;
+        }
+      }
+
+      // 3. Raw Tuya TLV scan (even without 55 AA header)
+      if (parseTuyaPacket(bytes)) {
+        markDetectedProtocol('tuya', 'Tuya BLE (Kugoo Riding)');
         return;
       }
 
-      // 2. Try Generic Scooter frame (55 AA or AA 55)
-      if (bytes[0] === 0x55 && bytes[1] === 0xAA) {
-        parseNinebotOrXiaomiFrame(bytes);
-        return;
-      }
-
-      if (bytes[0] === 0xAA && bytes[1] === 0x55) {
-        parseKugooLenzeFrame(bytes);
-        return;
-      }
-
-      // 3. Fallback generic byte scan
+      // 4. Heuristic metric extractor
       parseHeuristicMetrics(bytes);
     }
 
-    // Tuya TLV DP parser:
-    // [dpId (1 byte)][dpType (1 byte)][len (2 bytes big endian)][data...]
-    function parseTuyaPacket(bytes) {
-      // Find start of TLV payload (Tuya BLE frames often have header bytes)
-      let offset = 0;
+    function markDetectedProtocol(protoKey, protoName) {
+      if (state.detectedProtocol !== protoKey) {
+        state.detectedProtocol = protoKey;
+        log(`🎉 Протокол самоката распознан: ${protoName}!`, 'in');
+        document.getElementById('diagStatus').textContent = `Протокол: ${protoName}`;
+        document.getElementById('diagStatus').style.color = 'var(--accent-cyan)';
+      }
+    }
 
-      // Check if wrapped in Tuya packet header (0x55 0xAA ... or version/rsn header)
-      if (bytes.length > 4 && bytes[0] === 0x55 && bytes[1] === 0xaa) {
-        offset = 6; // skip header
-      } else if (bytes.length >= 7 && bytes[0] <= 0x05) {
-        // version (1), rsn (1), srcType (1), extLen (1)...
-        // TLV usually begins around offset 4 or 6
+    // Decoder 1: Kugoo S1/S2/S3 / Lenze protocol
+    function parseKugooLenzeFrame(bytes) {
+      if (bytes.length < 6) return false;
+      // In Kugoo S1 frame:
+      // Byte 0: 0xAA, Byte 1: 0x55
+      // Byte 2: Command/type
+      // Byte 3: Error code
+      // Byte 4: Speed (km/h)
+      // Byte 5: Battery % or voltage
+      // Byte 6: Gear/mode (1, 2, 3)
+      const speed = bytes[4];
+      const bat = bytes[5];
+      const gear = bytes[6];
+
+      if (speed <= 99) updateSpeed(speed);
+      if (bat > 0 && bat <= 100) updateBattery(bat);
+      if (gear >= 1 && gear <= 3) updateSpeedMode(gear);
+      return true;
+    }
+
+    // Decoder 2: MiniRobot / Xiaomi frame
+    function parseMiniRobotFrame(bytes) {
+      if (bytes.length >= 10 && bytes[2] >= 0x10) {
+        // Telemetry payload
+        const rawSpeed = (bytes[4] | (bytes[5] << 8));
+        const speed = rawSpeed > 1000 ? rawSpeed / 1000 : rawSpeed / 10;
+        const bat = bytes[6];
+        if (speed >= 0 && speed <= 90) updateSpeed(speed);
+        if (bat > 0 && bat <= 100) updateBattery(bat);
+        return true;
+      }
+      return false;
+    }
+
+    // Decoder 3: Tuya TLV Data Points
+    function parseTuyaPacket(bytes) {
+      let offset = 0;
+      if (bytes[0] === 0x55 && bytes[1] === 0xaa) {
+        offset = 6;
+      } else if (bytes.length >= 5 && bytes[0] <= 0x05) {
         offset = 4;
       }
 
+      let parsedAny = false;
       while (offset + 4 <= bytes.length) {
         const dpId = bytes[offset];
         const dpType = bytes[offset + 1];
         const dpLen = (bytes[offset + 2] << 8) | bytes[offset + 3];
         offset += 4;
 
-        if (offset + dpLen > bytes.length) break;
+        if (offset + dpLen > bytes.length || dpLen === 0) break;
 
         const dpData = bytes.slice(offset, offset + dpLen);
         offset += dpLen;
 
         handleTuyaDP(dpId, dpType, dpData);
+        parsedAny = true;
       }
+      return parsedAny;
     }
 
     function handleTuyaDP(dpId, dpType, data) {
-      // Decode integer value
       let intVal = 0;
       if (data.length === 1) intVal = data[0];
       else if (data.length === 2) intVal = (data[0] << 8) | data[1];
       else if (data.length === 4) intVal = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
-
-      // Tuya standard DP mappings for electric scooters:
-      // DP 1 / DP 7: blelock_switch (Lock)
-      // DP 2 / DP 4: mode / gear (1, 2, 3)
-      // DP 3: speed (km/h or 0.1 km/h)
-      // DP 4 / DP 1: battery_percentage (0 - 100%)
-      // DP 5: mileage_total (0.1 km)
-      // DP 6: mileage_once (0.1 km)
-      // DP 7: headlight_switch (Light)
-      // DP 8: cruise_switch (Cruise)
-      // DP 9: zero_start (Start mode)
-      // DP 10: speed_limit (Speed limit)
 
       switch (dpId) {
         case 1:
@@ -1312,93 +1543,79 @@
         case 10: // Speed limit
           if (dpType === 2) updateSpeedLimitUI(intVal);
           break;
-        default:
-          log(`[DP] ID=${dpId} Type=${dpType} Val=${intVal}`, 'info');
       }
     }
 
-    // Kugoo Lenze Frame (AA 55 ...)
-    function parseKugooLenzeFrame(bytes) {
-      if (bytes.length >= 8) {
-        const speed = bytes[4];
-        const battery = bytes[5];
-        const gear = bytes[6];
-        if (speed <= 99) updateSpeed(speed);
-        if (battery <= 100) updateBattery(battery);
-        if (gear >= 1 && gear <= 3) updateSpeedMode(gear);
-      }
-    }
-
-    // Ninebot / Xiaomi frame (55 AA ...)
-    function parseNinebotOrXiaomiFrame(bytes) {
-      if (bytes.length >= 10) {
-        const speed = ((bytes[4] | (bytes[5] << 8)) / 1000);
-        const battery = bytes[6];
-        if (speed >= 0 && speed <= 100) updateSpeed(speed);
-        if (battery >= 0 && battery <= 100) updateBattery(battery);
-      }
-    }
-
-    // Heuristic scanner if frame unknown
+    // Decoder 4: Heuristic fallback
     function parseHeuristicMetrics(bytes) {
       for (let i = 0; i < bytes.length; i++) {
         // Battery check
-        if (bytes[i] <= 100 && bytes[i] >= 10 && state.battery === 0) {
+        if (state.battery === null && bytes[i] >= 10 && bytes[i] <= 100) {
           updateBattery(bytes[i]);
+          break;
         }
       }
     }
 
     /* =========================================================
-       COMMAND SENDER (SPEED REGULATION, MODES, LIGHT, LOCK)
+       COMMAND SENDER (SPEED REGULATION & CONTROLS)
        ========================================================= */
 
-    async function sendBleBytes(dataBytes) {
-      if (state.isSimulated) {
-        log(`>> [SIM TX] ${Array.from(dataBytes).map(b => b.toString(16).padStart(2, '0')).join(' ')}`, 'out');
-        return;
-      }
-      if (!state.writeChar) {
-        log('[WARN] Характеристика записи недоступна', 'err');
-        return;
-      }
-      try {
-        log(`>> [TX] ${Array.from(dataBytes).map(b => b.toString(16).padStart(2, '0')).join(' ')}`, 'out');
-        await state.writeChar.writeValue(dataBytes);
-      } catch (err) {
-        log(`Ошибка отправки: ${err.message}`, 'err');
+    async function sendRawToAllWriteChars(dataBytes) {
+      if (state.writeCharacteristics.length === 0) return;
+      for (const ch of state.writeCharacteristics) {
+        try {
+          if (ch.properties.writeWithoutResponse) {
+            await ch.writeValueWithoutResponse(dataBytes);
+          } else {
+            await ch.writeValue(dataBytes);
+          }
+          state.txPacketCount++;
+        } catch (e) {}
       }
     }
 
-    // Query status packet
-    function queryScooterStatus() {
-      if (state.protocol === 'tuya') {
-        // Tuya DP query packet
-        const req = new Uint8Array([0x55, 0xaa, 0x00, 0x08, 0x00, 0x00, 0x07]);
-        sendBleBytes(req);
-      } else {
-        // Standard poll frame
-        const req = new Uint8Array([0xaa, 0x55, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x56]);
-        sendBleBytes(req);
+    async function sendRawToAppropriateChars(dataBytes, preferredServiceKeyword) {
+      let sent = false;
+      for (const ch of state.writeCharacteristics) {
+        if (ch.service.uuid.toLowerCase().includes(preferredServiceKeyword)) {
+          try {
+            if (ch.properties.writeWithoutResponse) {
+              await ch.writeValueWithoutResponse(dataBytes);
+            } else {
+              await ch.writeValue(dataBytes);
+            }
+            state.txPacketCount++;
+            sent = true;
+          } catch (e) {}
+        }
+      }
+      if (!sent) {
+        sendRawToAllWriteChars(dataBytes);
       }
     }
 
-    // 1. SPEED MODE / GEAR (Регулировка скорости: Режим 1, 2, 3)
+    // 1. SPEED MODE / GEAR (Регулировка скорости 1, 2, 3)
     function setSpeedMode(mode) {
       playBeep(880 + (mode * 150), 0.08);
       updateSpeedMode(mode);
 
-      if (state.protocol === 'tuya') {
-        // Tuya DP 2 (Enum: mode)
-        // TLV: DP=2, Type=4 (Enum), Len=1, Val=mode
-        const pkt = makeTuyaDpFrame(2, 4, [mode]);
-        sendBleBytes(pkt);
-      } else if (state.protocol === 'nus' || state.protocol === 'ffe0') {
-        // UART gear packet
-        const pkt = new Uint8Array([0xaa, 0x55, 0x02, mode, 0x00, 0x00, (0xaa ^ mode)]);
-        sendBleBytes(pkt);
-      }
-      log(`Установлен режим скорости: ${mode}`, 'out');
+      log(`Отправка переключения режима скорости: ${mode}...`, 'out');
+
+      // A. Tuya DP 2 (Enum: mode)
+      const tuyaMode = makeTuyaDpFrame(2, 4, [mode]);
+      sendRawToAllWriteChars(tuyaMode);
+
+      // B. Kugoo S1 / Lenze gear packet: [AA 55 02 mode 00 00 00 00 checksum]
+      const sum = (0xaa + 0x55 + 0x02 + mode) & 0xff;
+      const lenzeMode = new Uint8Array([0xaa, 0x55, 0x02, mode, 0x00, 0x00, 0x00, 0x00, sum]);
+      sendRawToAllWriteChars(lenzeMode);
+
+      // C. MiniRobot / Clone gear packet
+      const mrGear = new Uint8Array([0x55, 0xaa, 0x04, 0x20, 0x02, 0x7b, mode - 1, 0x00, 0x55]);
+      sendRawToAllWriteChars(mrGear);
+
+      log(`Режим ${mode} отправлен во всех совместимых форматах ✓`, 'in');
     }
 
     function cycleSpeedMode() {
@@ -1407,7 +1624,7 @@
       setSpeedMode(nextMode);
     }
 
-    // 2. SPEED LIMIT (Ограничение скорости слайдером)
+    // 2. SPEED LIMIT (Ограничение скорости)
     function onSpeedLimitInput(val) {
       document.getElementById('speedLimitLabel').textContent = `${val} км/ч`;
     }
@@ -1417,16 +1634,17 @@
       state.speedLimit = limit;
       playBeep(950, 0.06);
 
-      if (state.protocol === 'tuya') {
-        // Tuya DP 10 (Integer: speed_limit, 4 bytes)
-        const valBytes = [(limit >> 24) & 0xff, (limit >> 16) & 0xff, (limit >> 8) & 0xff, limit & 0xff];
-        const pkt = makeTuyaDpFrame(10, 2, valBytes);
-        sendBleBytes(pkt);
-      } else {
-        const pkt = new Uint8Array([0xaa, 0x55, 0x03, limit, 0x00, 0x00, (0xaa ^ limit)]);
-        sendBleBytes(pkt);
-      }
-      log(`Ограничение скорости установлено: ${limit} км/ч`, 'out');
+      log(`Отправка ограничения скорости: ${limit} км/ч...`, 'out');
+
+      // Tuya DP 10 (Integer: speed_limit)
+      const valBytes = [(limit >> 24) & 0xff, (limit >> 16) & 0xff, (limit >> 8) & 0xff, limit & 0xff];
+      const tuyaLimit = makeTuyaDpFrame(10, 2, valBytes);
+      sendRawToAllWriteChars(tuyaLimit);
+
+      // Lenze limit packet
+      const sum = (0xaa + 0x55 + 0x03 + limit) & 0xff;
+      const lenzeLimit = new Uint8Array([0xaa, 0x55, 0x03, limit, 0x00, 0x00, 0x00, 0x00, sum]);
+      sendRawToAllWriteChars(lenzeLimit);
     }
 
     // 3. Headlight
@@ -1434,63 +1652,66 @@
       const next = !state.isHeadlightOn;
       updateHeadlight(next);
       playBeep(next ? 1200 : 700, 0.08);
-      if (state.protocol === 'tuya') {
-        const pkt = makeTuyaDpFrame(7, 1, [next ? 1 : 0]);
-        sendBleBytes(pkt);
-      } else {
-        const pkt = new Uint8Array([0xaa, 0x55, 0x04, next ? 1 : 0, 0x00, 0x00, 0x00]);
-        sendBleBytes(pkt);
-      }
+
+      // Tuya DP 7
+      const tuyaLight = makeTuyaDpFrame(7, 1, [next ? 1 : 0]);
+      sendRawToAllWriteChars(tuyaLight);
+
+      // Lenze Light
+      const sum = (0xaa + 0x55 + 0x04 + (next ? 1 : 0)) & 0xff;
+      const lenzeLight = new Uint8Array([0xaa, 0x55, 0x04, next ? 1 : 0, 0x00, 0x00, 0x00, 0x00, sum]);
+      sendRawToAllWriteChars(lenzeLight);
+
       log(`Фара: ${next ? 'ВКЛ' : 'ВЫКЛ'}`, 'out');
     }
 
-    // 4. Lock motor
+    // 4. Motor Lock
     function toggleLock() {
       const next = !state.isLocked;
       updateLock(next);
       playBeep(next ? 500 : 1000, 0.12);
-      if (state.protocol === 'tuya') {
-        const pkt = makeTuyaDpFrame(1, 1, [next ? 1 : 0]);
-        sendBleBytes(pkt);
-      } else {
-        const pkt = new Uint8Array([0xaa, 0x55, 0x05, next ? 1 : 0, 0x00, 0x00, 0x00]);
-        sendBleBytes(pkt);
-      }
-      log(`Блокировка мотора: ${next ? 'ЗАБЛОКИРОВАН' : 'РАЗБЛОКИРОВАН'}`, 'out');
+
+      // Tuya DP 1
+      const tuyaLock = makeTuyaDpFrame(1, 1, [next ? 1 : 0]);
+      sendRawToAllWriteChars(tuyaLock);
+
+      // Lenze Lock
+      const sum = (0xaa + 0x55 + 0x05 + (next ? 1 : 0)) & 0xff;
+      const lenzeLock = new Uint8Array([0xaa, 0x55, 0x05, next ? 1 : 0, 0x00, 0x00, 0x00, 0x00, sum]);
+      sendRawToAllWriteChars(lenzeLock);
+
+      log(`Блокировка: ${next ? 'ЗАБЛОКИРОВАН' : 'РАЗБЛОКИРОВАН'}`, 'out');
     }
 
-    // 5. Cruise control
+    // 5. Cruise Control
     function toggleCruise() {
       const next = !state.isCruiseOn;
       updateCruise(next);
       playBeep(1100, 0.08);
-      if (state.protocol === 'tuya') {
-        const pkt = makeTuyaDpFrame(8, 1, [next ? 1 : 0]);
-        sendBleBytes(pkt);
-      }
-      log(`Круиз-контроль: ${next ? 'ВКЛ' : 'ВЫКЛ'}`, 'out');
+
+      const tuyaCruise = makeTuyaDpFrame(8, 1, [next ? 1 : 0]);
+      sendRawToAllWriteChars(tuyaCruise);
+
+      log(`Круиз: ${next ? 'ВКЛ' : 'ВЫКЛ'}`, 'out');
     }
 
-    // 6. Zero-start (Старт с 0)
+    // 6. Zero Start
     function toggleZeroStart() {
       const next = !state.isZeroStart;
       updateZeroStart(next);
       playBeep(1150, 0.08);
-      if (state.protocol === 'tuya') {
-        const pkt = makeTuyaDpFrame(9, 1, [next ? 1 : 0]);
-        sendBleBytes(pkt);
-      }
-      log(`Старт с места: ${next ? 'ВКЛ' : 'ВЫКЛ (нужен толчок)'}`, 'out');
+
+      const tuyaZero = makeTuyaDpFrame(9, 1, [next ? 1 : 0]);
+      sendRawToAllWriteChars(tuyaZero);
+
+      log(`Старт с 0: ${next ? 'ВКЛ' : 'ВЫКЛ'}`, 'out');
     }
 
-    // Tuya DP Packet Builder
     function makeTuyaDpFrame(dpId, dpType, valBytes) {
       const len = valBytes.length;
-      // Header: [0x55, 0xaa, version, cmd, len_hi, len_lo, ...TLV]
       const tlv = [dpId, dpType, (len >> 8) & 0xff, len & 0xff, ...valBytes];
       const payloadLen = tlv.length;
       const header = [0x55, 0xaa, 0x00, 0x06, (payloadLen >> 8) & 0xff, payloadLen & 0xff];
-      // Checksum: sum of bytes modulo 256
       const frame = [...header, ...tlv];
       let sum = 0;
       for (const b of frame) sum = (sum + b) & 0xff;
@@ -1509,8 +1730,6 @@
       }
       document.getElementById('speedDisplay').textContent = state.speed;
 
-      // Update Gauge progress (0 to 60 km/h)
-      // circumference = 440 (dasharray), arc angle is 270 deg (offset 110 to 440)
       const maxGaugeSpeed = 50;
       const ratio = Math.min(1, state.speed / maxGaugeSpeed);
       const offset = 440 - (ratio * 330);
@@ -1530,7 +1749,7 @@
 
       const statusEl = document.getElementById('batteryStatus');
       if (p > 50) {
-        statusEl.textContent = 'Оптимальный';
+        statusEl.textContent = 'Оптимальный уровень';
         statusEl.style.color = 'var(--accent-green)';
       } else if (p > 20) {
         statusEl.textContent = 'Средний заряд';
@@ -1540,8 +1759,7 @@
         statusEl.style.color = 'var(--accent-red)';
       }
 
-      // Estimate range based on battery %
-      const estKm = Math.round(p * 0.35); // ~35 km on 100%
+      const estKm = Math.round(p * 0.35);
       document.getElementById('rangeText').textContent = `Остаток хода: ~${estKm} км`;
       document.getElementById('voltageText').textContent = `Напряжение: ${(36 + (p * 0.06)).toFixed(1)} В`;
     }
@@ -1614,58 +1832,13 @@
 
     function updateDashboardUI() {
       updateSpeed(0);
-      updateBattery(85);
       updateSpeedMode(1);
       updateHeadlight(false);
       updateLock(false);
       updateCruise(false);
       updateZeroStart(true);
       updateTripKm(0.0);
-      updateTotalKm(142.5);
-    }
-
-    /* =========================================================
-       SIMULATION MODE (FOR IMMEDIATE TESTING & DEMO)
-       ========================================================= */
-
-    let simInterval = null;
-    let simTargetSpeed = 0;
-    let simSpeed = 0;
-
-    function toggleSimulation(enabled) {
-      state.isSimulated = enabled;
-      if (enabled) {
-        log('🧪 Режим симуляции ВКЛЮЧЕН. Демо-показ скорости и заряда.', 'info');
-        updateStatus('connected', 'Kugoo Demo (Симуляция)');
-        state.protocol = 'tuya';
-
-        let t = 0;
-        simInterval = setInterval(() => {
-          t += 0.2;
-          // Vary speed smoothly
-          const maxByGear = state.currentGear === 1 ? 15 : state.currentGear === 2 ? 25 : 42;
-          const target = (Math.sin(t) * 0.5 + 0.5) * maxByGear;
-          simSpeed += (target - simSpeed) * 0.15;
-          updateSpeed(simSpeed.toFixed(1));
-
-          // Increment trip
-          state.tripKm = (parseFloat(state.tripKm) + (simSpeed / 3600)).toFixed(2);
-          updateTripKm(parseFloat(state.tripKm));
-
-          // Slow battery fluctuation
-          if (Math.random() < 0.05 && state.battery > 10) {
-            updateBattery(state.battery - 1);
-          }
-        }, 150);
-      } else {
-        log('🧪 Режим симуляции выключен.', 'info');
-        clearInterval(simInterval);
-        simInterval = null;
-        if (!state.connected) {
-          updateStatus('disconnected', 'Отключено');
-          updateSpeed(0);
-        }
-      }
+      updateTotalKm(0.0);
     }
   </script>
 </body>
