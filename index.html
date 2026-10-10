@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kugoo v2.0 | Universal Web Bluetooth</title>
+  <title>Kugoo Scooter Dashboard v2.0 | Universal Web Bluetooth</title>
   <style>
     :root {
       --bg-primary: #0a0e17;
@@ -805,6 +805,14 @@
         <span id="diagDps" class="diag-val" style="color:var(--accent-green); font-size:10px;">Ожидание данных...</span>
       </div>
 
+      <div class="diag-row" style="flex-direction:column; align-items:flex-start; gap:6px; margin-top:8px;">
+        <span class="diag-label">Ключ шифрования Tuya LocalKey (16 симв.):</span>
+        <div style="display:flex; width:100%; gap:8px;">
+          <input type="text" id="tuyaKeyInput" placeholder="16-значный LocalKey или оставьте пустым" style="flex:1; background:var(--bg-card-sub); border:1px solid var(--border-color); color:#fff; padding:6px 10px; border-radius:8px; font-size:11px; font-family:monospace;" />
+          <button class="btn-secondary" style="padding:6px 12px; font-size:11px;" onclick="applyTuyaKey()">Применить</button>
+        </div>
+      </div>
+
       <div class="diag-controls">
         <select id="protocolSelector" class="protocol-select" onchange="onProtocolChange(this.value)">
           <option value="auto">Режим: АВТО (все протоколы)</option>
@@ -1035,6 +1043,8 @@
         seqOut: 1
       },
       dps: {}, // Active decoded DPs
+      tuyaLocalKey: null,
+      activeTuyaKey: null,
 
       // Metrics
       speed: 0,
@@ -1098,6 +1108,12 @@
     window.addEventListener('DOMContentLoaded', () => {
       checkEnvironment();
       updateDashboardUI();
+      const savedKey = localStorage.getItem('kugoo_tuya_localkey');
+      if (savedKey) {
+        const inp = document.getElementById('tuyaKeyInput');
+        if (inp) inp.value = savedKey;
+        applyTuyaKey();
+      }
     });
 
     function checkEnvironment() {
@@ -1566,10 +1582,15 @@
       parseAnyPayload(bytes);
     }
 
-    function parseAnyPayload(bytes) {
+    async function parseAnyPayload(bytes) {
       if (!bytes || bytes.length === 0) return;
 
-      // 1. Lenze / Kugoo S1/S2/S3 (Header: AA 55)
+      // 1. Check Tuya BLE encrypted payload (AES-128-CBC)
+      if (await tryDecryptTuyaPacket(bytes)) {
+        return;
+      }
+
+      // 2. Lenze / Kugoo S1/S2/S3 (Header: AA 55)
       if (bytes[0] === 0xaa && bytes[1] === 0x55) {
         if (parseKugooLenzeFrame(bytes)) {
           markDetectedProtocol('kugoo_lenze', 'Kugoo S1/S3 (Lenze)');
@@ -1577,27 +1598,106 @@
         }
       }
 
-      // 2. MiniRobot / Xiaomi format (Header: 55 AA, length > 6)
+      // 3. MiniRobot / Xiaomi format (Header: 55 AA, length > 6)
       if (bytes[0] === 0x55 && bytes[1] === 0xaa) {
         if (parseMiniRobotFrame(bytes)) {
           markDetectedProtocol('minirobot', 'MiniRobot / Clone (55 AA)');
           return;
         }
-        // Could be Tuya BLE frame!
         if (parseTuyaPacket(bytes)) {
           markDetectedProtocol('tuya', 'Tuya BLE (Kugoo Riding)');
           return;
         }
       }
 
-      // 3. Scan for Tuya BLE DP TLVs (both 1-byte length and 2-byte length)
+      // 4. Scan for Tuya BLE DP TLVs (both 1-byte length and 2-byte length)
       if (parseTuyaPacket(bytes)) {
         markDetectedProtocol('tuya', 'Tuya BLE (Kugoo Riding)');
         return;
       }
 
-      // 4. Heuristic metric extractor
+      // 5. Heuristic metric extractor
       parseHeuristicMetrics(bytes);
+    }
+
+    /* =========================================================
+       TUYA AES-128-CBC DECRYPTION ENGINE
+       ========================================================= */
+
+    async function tryDecryptTuyaPacket(bytes) {
+      if (!bytes || bytes.length < 32) return false;
+
+      // Frame format: [flag (1B), IV (16B), Ciphertext (N*16B)]
+      // Or: [IV (16B), Ciphertext (N*16B)]
+      let iv = null;
+      let ciphertext = null;
+
+      if ((bytes.length - 17) >= 16 && (bytes.length - 17) % 16 === 0) {
+        iv = bytes.slice(1, 17);
+        ciphertext = bytes.slice(17);
+      } else if (bytes.length >= 32 && bytes.length % 16 === 0) {
+        iv = bytes.slice(0, 16);
+        ciphertext = bytes.slice(16);
+      } else {
+        return false;
+      }
+
+      const candidateKeys = [];
+      if (state.tuyaLocalKey) candidateKeys.push(state.tuyaLocalKey);
+      if (state.activeTuyaKey) candidateKeys.push(state.activeTuyaKey);
+      candidateKeys.push(new Uint8Array(16)); // 16 zeroes
+      candidateKeys.push(new Uint8Array([0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f]));
+      candidateKeys.push(new Uint8Array([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]));
+      candidateKeys.push(new TextEncoder().encode("1234567890123456"));
+      candidateKeys.push(new TextEncoder().encode("0000000000000000"));
+
+      for (const key of candidateKeys) {
+        try {
+          if (!window.crypto || !window.crypto.subtle) break;
+          const cryptoKey = await window.crypto.subtle.importKey('raw', key, { name: 'AES-CBC' }, false, ['decrypt']);
+          const decryptedBuf = await window.crypto.subtle.decrypt({ name: 'AES-CBC', iv }, cryptoKey, ciphertext);
+          const dec = new Uint8Array(decryptedBuf);
+          if (dec.length >= 12) {
+            const code = (dec[8] << 8) | dec[9];
+            const dataLen = (dec[10] << 8) | dec[11];
+            if (dataLen > 0 && dataLen <= dec.length - 12) {
+              const payload = dec.slice(12, 12 + dataLen);
+              state.activeTuyaKey = key;
+              log(`🔑 Успешно расшифрован пакет Tuya! Код: 0x${code.toString(16)}`, 'in');
+              if (parseTuyaPacket(payload)) {
+                markDetectedProtocol('tuya_channel', 'Tuya BLE Зашифрованный (Kugoo F3)');
+                return true;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+      return false;
+    }
+
+    function applyTuyaKey() {
+      const input = document.getElementById('tuyaKeyInput');
+      if (!input) return;
+      const val = input.value.trim();
+      if (val.length === 16) {
+        state.tuyaLocalKey = new TextEncoder().encode(val);
+        localStorage.setItem('kugoo_tuya_localkey', val);
+        log(`🔑 Ключ Tuya LocalKey сохранен: "${val}"`, 'info');
+        manualPoll();
+      } else if (val.length === 32) {
+        const bytes = new Uint8Array(16);
+        for (let i = 0; i < 16; i++) bytes[i] = parseInt(val.substr(i * 2, 2), 16);
+        state.tuyaLocalKey = bytes;
+        localStorage.setItem('kugoo_tuya_localkey', val);
+        log(`🔑 HEX Ключ Tuya LocalKey сохранен (16 байт)`, 'info');
+        manualPoll();
+      } else if (val.length === 0) {
+        state.tuyaLocalKey = null;
+        localStorage.removeItem('kugoo_tuya_localkey');
+        log('Ключ LocalKey сброшен', 'info');
+      } else {
+        alert('Ключ должен быть ровно 16 символов (или 32 символа в HEX)!');
+      }
     }
 
     function markDetectedProtocol(protoKey, protoName) {
@@ -1644,13 +1744,9 @@
       // Scan starting from known offsets:
       // A. Standard Tuya header 55 AA: header is 6 bytes (55 AA ver cmd len_hi len_lo)
       // B. Ret frame with flag/command header (offset 10, 4, or 0)
-      let startOffsets = [0];
+      let startOffsets = [0, 1, 2, 4, 6, 8, 10];
       if (bytes[0] === 0x55 && bytes[1] === 0xaa && bytes.length >= 6) {
-        startOffsets = [6];
-      } else if (bytes.length >= 10 && (bytes[0] === 0x00 || bytes[0] === 0x40)) {
-        startOffsets = [10, 4, 0];
-      } else if (bytes.length >= 4 && bytes[0] <= 0x05) {
-        startOffsets = [4, 0];
+        startOffsets = [6, 0];
       }
 
       for (const startOffset of startOffsets) {
